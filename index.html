@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lộ trình Junior → Middle Android</title>
+  <meta name="description" content="Lộ trình cá nhân Junior → Middle Android Developer: Cơ sở dữ liệu · Lập trình mạng · Thuật toán. Timeline 19 tuần, có tracking tiến độ." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/styles.css?v=6" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>" />
+</head>
+<body>
+  <!-- Lớp hình nền (phong cách Nhật) -->
+  <div id="bgLayer"></div>
+  <div id="bgScrim"></div>
+
+  <!-- Progress bar dính trên cùng -->
+  <div class="scroll-progress" id="scrollProgress"></div>
+
+  <!-- NAV -->
+  <header class="nav" id="nav">
+    <a class="nav__brand" href="#top">
+      <span class="nav__logo">🚀</span>
+      <span class="nav__brandtext">Junior → <b>Middle</b></span>
+    </a>
+    <nav class="nav__links" id="navLinks">
+      <a href="#timeline">Timeline</a>
+      <a href="#algo">Thuật toán</a>
+      <a href="#db">Cơ sở dữ liệu</a>
+      <a href="#exercises">Bài tập SQL</a>
+      <a href="#net">Mạng</a>
+      <a href="#revise">Ôn tập</a>
+      <a href="#capstone">Capstone</a>
+    </nav>
+    <div class="nav__actions">
+      <div class="nav__progress" id="navProgress" title="Tiến độ tổng">
+        <svg viewBox="0 0 36 36" class="ring">
+          <path class="ring__bg" d="M18 2.5a15.5 15.5 0 1 1 0 31 15.5 15.5 0 0 1 0-31" />
+          <path class="ring__fg" id="ringFg" d="M18 2.5a15.5 15.5 0 1 1 0 31 15.5 15.5 0 0 1 0-31" />
+        </svg>
+        <span class="ring__label" id="ringLabel">0%</span>
+      </div>
+      <button class="iconbtn" id="bgToggle" title="Đổi hình nền" aria-label="Đổi hình nền">🎨</button>
+      <button class="iconbtn" id="themeToggle" title="Đổi giao diện sáng/tối" aria-label="Đổi giao diện">🌙</button>
+      <button class="iconbtn nav__burger" id="burger" aria-label="Menu">☰</button>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero" id="top">
+    <div class="hero__glow"></div>
+    <div class="hero__inner">
+      <div class="hero__badge" id="heroBadge">📅 Timeline</div>
+      <h1 class="hero__title" id="heroTitle"></h1>
+      <p class="hero__subtitle" id="heroSubtitle"></p>
+      <p class="hero__principle" id="heroPrinciple"></p>
+      <div class="hero__stats" id="heroStats"></div>
+      <div class="hero__cta">
+        <a href="#timeline" class="btn btn--primary">Xem lộ trình →</a>
+        <a href="#algo" class="btn btn--ghost">Bắt đầu học</a>
+      </div>
+    </div>
+  </section>
+
+  <main>
+    <!-- WHY -->
+    <section class="section section--why">
+      <div class="wrap">
+        <h2 class="section__title">Vì sao 4 năm mà vẫn thấy mình "junior"?</h2>
+        <p class="section__lead">Thường không phải do thiếu kinh nghiệm, mà do 4 khoảng trống:</p>
+        <div class="why__grid">
+          <div class="why__card"><span class="why__num">01</span><h3>Biết "how" nhưng không "why"</h3><p>Dùng Room, Retrofit, Coroutine trôi chảy nhưng không hiểu bên dưới → không tự tin khi gặp bug lạ hoặc ra quyết định kiến trúc.</p></div>
+          <div class="why__card"><span class="why__num">02</span><h3>Nền CS yếu</h3><p>Thuật toán, index DB, cách TCP/HTTP hoạt động — chính là thứ ngăn cách junior và middle.</p></div>
+          <div class="why__card"><span class="why__num">03</span><h3>Không tự thiết kế từ đầu</h3><p>Ghép feature theo pattern có sẵn, nhưng chưa tự đưa ra và bảo vệ được các trade-off kiến trúc.</p></div>
+          <div class="why__card"><span class="why__num">04</span><h3>Chưa xử lý tốt edge case</h3><p>Lỗi mạng, migration DB, race condition, concurrency — thứ làm code "chạy được" khác code "production-grade".</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TIMELINE -->
+    <section class="section" id="timeline">
+      <div class="wrap">
+        <h2 class="section__title">Timeline theo phase</h2>
+        <p class="section__lead">Thuật toán chạy nền suốt 19 tuần (30'/ngày). Bảng dưới là <em>chủ đề chính</em> của mỗi phase.</p>
+        <div class="timeline" id="timelineList"></div>
+      </div>
+    </section>
+
+    <!-- PILLARS OVERVIEW -->
+    <section class="section section--alt">
+      <div class="wrap">
+        <h2 class="section__title">Ba trụ cột</h2>
+        <div class="pillar-cards" id="pillarCards"></div>
+      </div>
+    </section>
+
+    <!-- PILLAR DETAIL SECTIONS (render vào đây) -->
+    <div id="pillarSections"></div>
+
+    <!-- BÀI TẬP SQL / ROOM -->
+    <section class="section" id="exercises">
+      <div class="wrap">
+        <h2 class="section__title">🗄️ Bài tập SQL &amp; Room</h2>
+        <p class="section__lead" id="wbIntro"></p>
+        <div id="wbSchema"></div>
+        <div class="wb__progwrap">
+          <div class="wb__bar"><i id="wbBar"></i></div>
+          <div class="wb__progrow">
+            <div class="wb__progtxt" id="wbProg"></div>
+            <button class="wb__resume" id="wbResume">▶ Tiếp tục bài chưa giải</button>
+          </div>
+        </div>
+        <div id="wbSets"></div>
+        <div class="reslist" id="wbRes"></div>
+      </div>
+    </section>
+
+    <!-- REVISE -->
+    <section class="section section--alt" id="revise">
+      <div class="wrap">
+        <h2 class="section__title">Lớp ôn tập nền tảng</h2>
+        <p class="section__lead" id="reviseIntro"></p>
+        <div class="revise" id="reviseGroups"></div>
+        <div class="reslist" id="reviseRes"></div>
+      </div>
+    </section>
+
+    <!-- CAPSTONE -->
+    <section class="section" id="capstone">
+      <div class="wrap">
+        <h2 class="section__title">Capstone — sợi chỉ xuyên suốt</h2>
+        <p class="section__lead" id="capstoneIntro"></p>
+        <div class="capstone" id="capstoneGrid"></div>
+      </div>
+    </section>
+
+    <!-- MILESTONES -->
+    <section class="section section--alt" id="milestones">
+      <div class="wrap">
+        <h2 class="section__title">Đã lên middle chưa?</h2>
+        <p class="section__lead">Bạn thật sự ở mức middle khi trả lời trôi chảy những câu <em>"tại sao"</em> (không chỉ "làm thế nào"):</p>
+        <ul class="milestones" id="milestoneList"></ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <p id="footerOwner"></p>
+      <p class="footer__meta">Tiến độ được lưu trên trình duyệt này (localStorage). <button class="linkbtn" id="resetProgress">Đặt lại tiến độ</button></p>
+    </div>
+  </footer>
+
+  <button class="totop" id="toTop" aria-label="Lên đầu trang">↑</button>
+
+  <script src="assets/js/data.js?v=6"></script>
+  <script src="assets/js/app.js?v=6"></script>
+</body>
+</html>
