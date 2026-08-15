@@ -60,7 +60,7 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+html { scroll-behavior: smooth; scroll-padding-top: 84px; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 body {
   font-family: var(--font-sans);
@@ -466,7 +466,7 @@ em { font-style: normal; color: var(--accent-2); font-weight: 600; }
 
 .bgpick {
   position: fixed; top: 60px; right: 14px; z-index: 95; width: 320px; max-width: calc(100vw - 28px);
-  max-height: calc(100vh - 90px); overflow-y: auto;
+  max-height: calc(100vh - 90px); max-height: calc(100dvh - 90px); overflow-y: auto;
   background: var(--bg-soft); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow);
   padding: 14px; animation: cpIn .2s ease;
 }
@@ -510,7 +510,7 @@ em { font-style: normal; color: var(--accent-2); font-weight: 600; }
 
 .cp__panel {
   position: absolute; left: 0; bottom: 66px; width: 340px; max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 120px); overflow-y: auto;
+  max-height: calc(100vh - 120px); max-height: calc(100dvh - 120px); overflow-y: auto;
   background: var(--bg-soft); border: 1px solid var(--border); border-radius: 18px;
   box-shadow: var(--shadow); padding: 16px; animation: cpIn .22s ease;
 }
@@ -629,9 +629,24 @@ em { font-style: normal; color: var(--accent-2); font-weight: 600; }
 .cp__toastx { background: none; border: none; color: var(--text-dim); font-size: 1.3rem; cursor: pointer; line-height: 1; }
 
 @media (max-width: 760px) {
-  .cp { left: 16px; bottom: 16px; }
-  .cp__toast { flex-direction: column; align-items: stretch; text-align: center; bottom: 90px; }
+  .cp { left: max(16px, env(safe-area-inset-left)); bottom: max(16px, env(safe-area-inset-bottom)); }
+  .cp__toast { flex-direction: column; align-items: stretch; text-align: center; bottom: calc(env(safe-area-inset-bottom) + 84px); }
   .cp__toastbtns { justify-content: center; }
+  .cp__toaststart, .cp__toastdone { flex: 1; }
+}
+.cp__toaststart, .cp__toastdone { white-space: nowrap; }
+
+/* -------------------- SAFE-AREA & PWA STANDALONE --------------------- */
+.nav { padding-left: max(22px, env(safe-area-inset-left)); padding-right: max(22px, env(safe-area-inset-right)); }
+.totop { right: max(24px, env(safe-area-inset-right)); bottom: max(24px, env(safe-area-inset-bottom)); }
+.cp__toast { bottom: max(24px, env(safe-area-inset-bottom)); }
+.minitoast { bottom: calc(env(safe-area-inset-bottom) + 84px); }
+@media (display-mode: standalone) {
+  .nav { padding-top: max(12px, env(safe-area-inset-top)); }
+}
+@media (max-width: 480px) {
+  .hero { padding-top: 60px; padding-bottom: 48px; }
+  .nav__links { top: calc(env(safe-area-inset-top) + 58px); }
 }
 
 /* mini-toast "Đã lưu / sang bài" */
