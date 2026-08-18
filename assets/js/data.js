@@ -724,27 +724,108 @@ CREATE TABLE phone (id INTEGER PRIMARY KEY,
         },
         {
           id: "db-keys",
-          name: "Khoá chính · khoá ngoại · quan hệ 1-1 / 1-n / n-n",
+          name: "Khoá chính (PK) — định danh mỗi dòng",
           level: "core",
           summary:
-            "Khoá chính (PK) định danh duy nhất một dòng. Khoá ngoại (FK) trỏ tới PK bảng khác, giữ toàn vẹn tham chiếu. Quan hệ n-n cần bảng trung gian (junction) chứa hai FK.",
+            "Khoá chính định danh DUY NHẤT một dòng, không được NULL, không trùng. Trong SQLite, `INTEGER PRIMARY KEY` là bí danh của rowid (cột ẩn tự tăng) → cực nhanh khi tra theo id. Nên ưu tiên surrogate key (id tự sinh) hơn natural key (email, sđt) vì dữ liệu thật hay đổi.",
           points: [
-            "1-1: FK duy nhất (UNIQUE) ở một bên",
-            "1-n: FK nằm ở bên 'nhiều' (vd: order.user_id)",
-            "n-n: bảng trung gian, vd student_course(student_id, course_id)",
-            "SQLite: FK phải bật bằng PRAGMA foreign_keys = ON (Room bật sẵn)",
-            "ON DELETE CASCADE để xoá con theo cha khi cần",
+            "PK phải: duy nhất + KHÔNG NULL + hầu như không đổi trong suốt đời dòng",
+            "SQLite: `id INTEGER PRIMARY KEY` = bí danh rowid → tự tăng, tra id là O(log n)",
+            "AUTOINCREMENT: chỉ để KHÔNG tái dùng lại id đã xoá — chậm & tốn hơn, thường KHÔNG cần",
+            "Surrogate key (id số tự sinh) > natural key (email): natural key dễ đổi → phải sửa cả FK trỏ tới",
+            "Khoá kép (composite PK): nhiều cột cùng làm khoá, dùng cho bảng trung gian n-n",
+            "Room: `@PrimaryKey(autoGenerate = true) val id: Long = 0`",
           ],
           code: {
             lang: "sql",
-            content: `-- Quan hệ n-n qua bảng trung gian
-CREATE TABLE student (id INTEGER PRIMARY KEY, name TEXT);
-CREATE TABLE course  (id INTEGER PRIMARY KEY, title TEXT);
-CREATE TABLE enrollment (
-    student_id INTEGER REFERENCES student(id) ON DELETE CASCADE,
-    course_id  INTEGER REFERENCES course(id)  ON DELETE CASCADE,
-    PRIMARY KEY (student_id, course_id)      -- khoá kép
+            content: `-- INTEGER PRIMARY KEY = bí danh rowid (khuyên dùng)
+CREATE TABLE movie (
+    id    INTEGER PRIMARY KEY,   -- tự tăng, không cần AUTOINCREMENT
+    title TEXT NOT NULL
+);
+INSERT INTO movie(title) VALUES ('Inception');  -- id tự sinh = 1
+
+-- Khoá chính KÉP (composite) cho bảng n-n:
+CREATE TABLE movie_cast (
+    movie_id  INTEGER,
+    person_id INTEGER,
+    role      TEXT,
+    PRIMARY KEY (movie_id, person_id, role)  -- bộ 3 phải là duy nhất
 );`,
+          },
+        },
+        {
+          id: "db-fk",
+          name: "Khoá ngoại (FK) & quan hệ 1-1 / 1-n / n-n",
+          level: "core",
+          summary:
+            "Khoá ngoại là cột trỏ tới PK của bảng khác, giữ TOÀN VẸN THAM CHIẾU: không cho tạo dòng con trỏ tới cha không tồn tại, và quy định điều gì xảy ra khi xoá/sửa cha (ON DELETE / ON UPDATE). Lưu ý: SQLite mặc định TẮT kiểm tra FK — phải bật thủ công.",
+          points: [
+            "1-n: FK đặt ở bên 'nhiều' (vd movie.genre_id → genre.id: mỗi phim 1 thể loại)",
+            "1-1: giống 1-n nhưng thêm UNIQUE lên cột FK để chặn nhân đôi",
+            "n-n: KHÔNG có FK trực tiếp — tách bảng trung gian chứa 2 FK (vd watchlist)",
+            "SQLite phải bật `PRAGMA foreign_keys = ON;` mỗi kết nối (Room bật sẵn)",
+            "ON DELETE: CASCADE (xoá con theo), SET NULL (bỏ liên kết), RESTRICT/NO ACTION (chặn xoá cha)",
+            "FK nên được đánh index — SQLite KHÔNG tự tạo, JOIN/CASCADE sẽ chậm nếu quên",
+          ],
+          code: {
+            lang: "sql",
+            content: `PRAGMA foreign_keys = ON;   -- BẮT BUỘC, nếu không FK bị bỏ qua
+
+-- 1-n: mỗi phim thuộc 1 thể loại
+CREATE TABLE genre (id INTEGER PRIMARY KEY, name TEXT);
+CREATE TABLE movie (
+    id       INTEGER PRIMARY KEY,
+    title    TEXT NOT NULL,
+    genre_id INTEGER REFERENCES genre(id) ON DELETE SET NULL
+);
+CREATE INDEX idx_movie_genre ON movie(genre_id);  -- nhớ index cho FK
+
+-- n-n: user <-> movie qua bảng trung gian, xoá cha thì dọn liên kết
+CREATE TABLE watchlist (
+    user_id  INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
+    movie_id INTEGER REFERENCES movie(id)  ON DELETE CASCADE,
+    PRIMARY KEY (user_id, movie_id)
+);
+
+-- Chèn con trỏ tới cha KHÔNG tồn tại -> lỗi FOREIGN KEY constraint failed
+-- Xoá 1 movie -> mọi dòng watchlist của phim đó tự bay theo (CASCADE)`,
+          },
+        },
+        {
+          id: "db-dml",
+          name: "INSERT · UPDATE · DELETE · UPSERT (sửa dữ liệu)",
+          level: "core",
+          summary:
+            "3 câu lệnh thay đổi dữ liệu (DML). Điểm sống còn: UPDATE và DELETE mà QUÊN WHERE sẽ tác động TOÀN BỘ bảng. UPSERT (INSERT ... ON CONFLICT) là mẫu cực hay: chưa có thì thêm, có rồi thì cập nhật — tránh chạy 2 câu.",
+          points: [
+            "INSERT nhiều dòng một lần bằng nhiều bộ VALUES; hoặc INSERT ... SELECT để chép từ query",
+            "⚠️ UPDATE / DELETE LUÔN kèm WHERE — thiếu WHERE là sửa/xoá sạch bảng",
+            "UPDATE tăng dần: `SET views = views + 1` (đọc-ghi nguyên tử trong 1 câu)",
+            "UPSERT: `INSERT ... ON CONFLICT(cột) DO UPDATE SET ...` — dùng `excluded.cột` để lấy giá trị định chèn",
+            "RETURNING (SQLite 3.35+) trả về dòng vừa insert/update/delete",
+            "Xoá cha có FK CASCADE → con tự xoá; nếu RESTRICT → phải xoá con trước",
+            "Room: @Insert (onConflict = REPLACE), @Update, @Delete, hoặc @Query cho UPSERT tinh chỉnh",
+          ],
+          code: {
+            lang: "sql",
+            content: `-- INSERT: 1 dòng, nhiều dòng, và chép từ query
+INSERT INTO genre(name) VALUES ('Sci-Fi');
+INSERT INTO genre(name) VALUES ('Drama'), ('Horror');      -- nhiều dòng
+INSERT INTO archive_movie SELECT * FROM movie WHERE year < 2000;
+
+-- UPDATE: NHỚ WHERE (thiếu là sửa cả bảng!)
+UPDATE movie SET rating = 8.8 WHERE id = 1;
+UPDATE movie SET rating = rating + 0.1 WHERE genre_id = 2;  -- tăng dần
+
+-- DELETE: NHỚ WHERE
+DELETE FROM review WHERE score < 3 AND created_at < :old;
+
+-- UPSERT: chưa có thì thêm, có rồi thì cập nhật cờ watched
+INSERT INTO watchlist(user_id, movie_id, added_at, watched)
+VALUES (:u, :m, :now, 1)
+ON CONFLICT(user_id, movie_id)
+DO UPDATE SET watched = 1;                    -- dùng excluded.* để lấy giá trị mới`,
           },
         },
       ],
@@ -1314,7 +1395,7 @@ const MILESTONES = [
    ====================================================================== */
 const WORKBOOK = {
   intro:
-    "34 bài tập bám sát trụ cột Cơ sở dữ liệu, xếp từ dễ → khó theo 6 cấp. Tất cả dùng chung một schema 'ứng dụng xem phim' (giống ý tưởng capstone). Làm xong bấm ✓ để lưu tiến độ. Nên tự viết trước rồi mới mở lời giải.",
+    "42 bài tập bám sát trụ cột Cơ sở dữ liệu, xếp từ dễ → khó theo 7 cấp — có hẳn một cấp riêng cho khoá chính/khoá ngoại và INSERT · UPDATE · DELETE. Tất cả dùng chung một schema 'ứng dụng xem phim' (giống ý tưởng capstone). Làm xong bấm ✓ để lưu tiến độ. Nên tự viết trước rồi mới mở lời giải.",
   schema: {
     note: "Dán DDL này vào DB Browser for SQLite (hoặc chạy trong Room) để luyện thực tế. Quan hệ: genre 1-n movie · movie n-n person (qua movie_cast) · user n-n movie (qua watchlist) · movie/user 1-n review.",
     relations: [
@@ -1442,7 +1523,114 @@ LIMIT 20;
       ],
     },
     {
-      level: "Cấp 2 — JOIN (4 loại)",
+      level: "Cấp 2 — Khoá chính · khoá ngoại · INSERT / UPDATE / DELETE",
+      diff: "easy",
+      items: [
+        {
+          id: "ex-35", tags: ["INSERT"],
+          q: "Thêm 1 thể loại tên 'Sci-Fi' vào bảng genre (để id tự sinh). Rồi thêm 3 thể loại 'Drama', 'Horror', 'Comedy' bằng MỘT câu lệnh.",
+          hint: "Không liệt kê id để nó tự tăng theo rowid. Nhiều dòng = nhiều bộ VALUES.",
+          solution: { lang: "sql", content: `-- 1 dòng (id tự sinh)
+INSERT INTO genre(name) VALUES ('Sci-Fi');
+
+-- 3 dòng trong một câu
+INSERT INTO genre(name) VALUES
+  ('Drama'),
+  ('Horror'),
+  ('Comedy');` },
+        },
+        {
+          id: "ex-36", tags: ["INSERT", "FK"],
+          q: "Thêm 1 phim 'Inception' năm 2010, rating 8.8, thuộc thể loại 'Sci-Fi'. Không hard-code id thể loại — lấy đúng genre_id từ tên.",
+          hint: "Dùng subquery lấy id của Sci-Fi để đặt vào genre_id. created_at có thể để 0.",
+          solution: { lang: "sql", content: `INSERT INTO movie(title, year, rating, genre_id, created_at)
+VALUES (
+  'Inception',
+  2010,
+  8.8,
+  (SELECT id FROM genre WHERE name = 'Sci-Fi'),
+  0
+);` },
+        },
+        {
+          id: "ex-37", tags: ["UPDATE", "WHERE"],
+          q: "Cập nhật rating của phim id = 1 thành 9.0. Giải thích chuyện gì xảy ra nếu QUÊN mệnh đề WHERE.",
+          hint: "UPDATE ... SET ... WHERE id = 1. Thiếu WHERE = sửa cả bảng.",
+          solution: { lang: "sql", content: `UPDATE movie SET rating = 9.0 WHERE id = 1;
+
+-- ⚠️ Nếu quên WHERE:
+-- UPDATE movie SET rating = 9.0;
+-- -> MỌI phim bị đổi rating = 9.0. Không undo được nếu ngoài transaction.
+-- Thói quen an toàn: viết WHERE TRƯỚC, hoặc SELECT thử cùng WHERE để đếm số dòng.` },
+        },
+        {
+          id: "ex-38", tags: ["UPDATE", "biểu thức"],
+          q: "Cộng thêm 0.2 vào rating cho tất cả phim thuộc thể loại 'Horror' (dùng chính giá trị cột, không set số cứng).",
+          hint: "SET rating = rating + 0.2, lọc genre_id qua subquery theo tên.",
+          solution: { lang: "sql", content: `UPDATE movie
+SET rating = rating + 0.2
+WHERE genre_id = (SELECT id FROM genre WHERE name = 'Horror');` },
+        },
+        {
+          id: "ex-39", tags: ["DELETE", "WHERE"],
+          q: "Xoá mọi review có score < 3 VÀ cũ hơn mốc thời gian :old. Vì sao DELETE không WHERE lại nguy hiểm?",
+          hint: "DELETE FROM review WHERE ... — hai điều kiện nối bằng AND.",
+          solution: { lang: "sql", content: `DELETE FROM review
+WHERE score < 3 AND created_at < :old;
+
+-- ⚠️ DELETE FROM review;  -> xoá SẠCH bảng (mọi dòng).
+-- Mẹo: chạy 'SELECT COUNT(*) FROM review WHERE ...' trước để biết
+-- sẽ xoá bao nhiêu dòng, rồi mới đổi thành DELETE.` },
+        },
+        {
+          id: "ex-40", tags: ["UPSERT", "ON CONFLICT"],
+          q: "User :u bấm lưu phim :m vào watchlist. Nếu chưa có thì thêm mới; nếu đã có thì chỉ cập nhật watched = 1. Viết bằng MỘT câu UPSERT.",
+          hint: "INSERT ... ON CONFLICT(khoá) DO UPDATE SET ... Khoá chính watchlist là (user_id, movie_id).",
+          solution: { lang: "sql", content: `INSERT INTO watchlist(user_id, movie_id, added_at, watched)
+VALUES (:u, :m, :now, 1)
+ON CONFLICT(user_id, movie_id) DO UPDATE SET
+  watched = 1;
+
+-- excluded.* = giá trị định chèn; ví dụ giữ added_at cũ nhưng
+-- ghi đè watched: DO UPDATE SET watched = excluded.watched;` },
+        },
+        {
+          id: "ex-41", tags: ["FK", "ON DELETE CASCADE"],
+          q: "Thiết kế lại bảng watchlist sao cho khi XOÁ một user thì mọi dòng watchlist của họ tự biến mất. Bật kiểm tra khoá ngoại và giải thích.",
+          hint: "REFERENCES ... ON DELETE CASCADE + PRAGMA foreign_keys = ON.",
+          solution: { lang: "sql", content: `PRAGMA foreign_keys = ON;   -- SQLite mặc định TẮT, phải bật
+
+CREATE TABLE watchlist (
+  user_id  INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
+  movie_id INTEGER REFERENCES movie(id)  ON DELETE CASCADE,
+  added_at INTEGER NOT NULL,
+  watched  INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, movie_id)
+);
+
+-- DELETE FROM "user" WHERE id = :u;
+-- -> CASCADE tự xoá mọi watchlist có user_id = :u.
+-- Không bật PRAGMA thì CASCADE bị bỏ qua -> để lại 'rác' trỏ tới user đã xoá.` },
+        },
+        {
+          id: "ex-42", tags: ["Composite PK", "chống trùng"],
+          q: "Bảng movie_cast (diễn viên/đạo diễn của phim) phải chặn việc thêm TRÙNG cùng một (phim, người, vai). Chọn khoá chính phù hợp và thử insert trùng để thấy DB chặn.",
+          hint: "Khoá chính KÉP gồm cả 3 cột movie_id, person_id, role.",
+          solution: { lang: "sql", content: `CREATE TABLE movie_cast (
+  movie_id  INTEGER REFERENCES movie(id),
+  person_id INTEGER REFERENCES person(id),
+  role      TEXT,                       -- 'actor' | 'director'
+  PRIMARY KEY (movie_id, person_id, role)   -- bộ 3 là duy nhất
+);
+
+INSERT INTO movie_cast VALUES (1, 7, 'actor');
+INSERT INTO movie_cast VALUES (1, 7, 'actor');
+-- -> Lỗi: UNIQUE constraint failed (đã chặn trùng nhờ khoá kép)` },
+        },
+      ],
+    },
+    {
+      level: "Cấp 3 — JOIN (4 loại)",
       diff: "easy",
       items: [
         {
@@ -1494,7 +1682,7 @@ WHERE w.user_id = 1 AND w.watched = 0;` },
       ],
     },
     {
-      level: "Cấp 3 — GROUP BY · HAVING · Aggregate",
+      level: "Cấp 4 — GROUP BY · HAVING · Aggregate",
       diff: "medium",
       items: [
         {
@@ -1551,7 +1739,7 @@ ORDER BY year;` },
       ],
     },
     {
-      level: "Cấp 4 — Subquery · CTE · Window function",
+      level: "Cấp 5 — Subquery · CTE · Window function",
       diff: "medium",
       items: [
         {
@@ -1631,7 +1819,7 @@ SELECT * FROM r WHERE rn = 1;` },
       ],
     },
     {
-      level: "Cấp 5 — Index & EXPLAIN (phân tích / thiết kế)",
+      level: "Cấp 6 — Index & EXPLAIN (phân tích / thiết kế)",
       diff: "hard",
       items: [
         {
@@ -1706,7 +1894,7 @@ fun moviesWithGenre(): Flow<List<MovieWithGenre>>` },
       ],
     },
     {
-      level: "Cấp 6 — Transaction · SQLite · Room (thực chiến)",
+      level: "Cấp 7 — Transaction · SQLite · Room (thực chiến)",
       diff: "hard",
       items: [
         {

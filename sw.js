@@ -1,12 +1,12 @@
 /* Service worker — offline cache + cập nhật ngầm (stale-while-revalidate) */
-const CACHE = "jm-android-v7";
+const CACHE = "jm-android-v9";
 const CORE = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-  "./assets/css/styles.css?v=7",
-  "./assets/js/data.js?v=7",
-  "./assets/js/app.js?v=7",
+  "./assets/css/styles.css?v=9",
+  "./assets/js/data.js?v=9",
+  "./assets/js/app.js?v=9",
   "./assets/icons/icon-512.png",
   "./assets/icons/icon-180.png",
 ];
